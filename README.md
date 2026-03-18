@@ -51,7 +51,7 @@ A fully configurable slider. All settings update the slider live — no re-queui
 Both nodes share the same widget style:
 
 - **Large value display** — monospace, centered at the top of the node. Click it to type a value directly; press `Enter` to confirm or `Escape` to cancel.
-- **Draggable range slider** — color-filled track (blue left of thumb, dark right). The fill updates as you drag.
+- **Draggable range slider** — color-filled track: blue left of the thumb, dark right. The fill updates live as you drag.
 - **Live configuration** (Configurable node only) — changing `min_value`, `max_value`, `precision`, or `step` immediately updates the slider without touching the queue.
 
 ---

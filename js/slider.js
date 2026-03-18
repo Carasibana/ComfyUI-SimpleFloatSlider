@@ -63,7 +63,18 @@ if (!document.getElementById(STYLE_ID)) {
             border-radius: 3px;
             outline: none;
             cursor: pointer;
-            /* fill set dynamically via .style.background */
+            background: transparent;
+        }
+
+        /* WebKit track — fill driven by --fsn-fill CSS variable set in JS */
+        .fsn-slider::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(
+                to right,
+                #5ac8ff var(--fsn-fill, 50%),
+                #303040 var(--fsn-fill, 50%)
+            );
         }
 
         /* WebKit thumb */
@@ -76,10 +87,11 @@ if (!document.getElementById(STYLE_ID)) {
             cursor: pointer;
             box-shadow: 0 0 7px rgba(90, 200, 255, 0.85);
             transition: transform 0.1s;
+            margin-top: -6px;
         }
         .fsn-slider::-webkit-slider-thumb:hover { transform: scale(1.25); }
 
-        /* Firefox thumb */
+        /* Firefox track + progress (browser fills progress natively) */
         .fsn-slider::-moz-range-thumb {
             width: 18px;
             height: 18px;
@@ -93,6 +105,11 @@ if (!document.getElementById(STYLE_ID)) {
             height: 6px;
             border-radius: 3px;
             background: #303040;
+        }
+        .fsn-slider::-moz-range-progress {
+            height: 6px;
+            border-radius: 3px 0 0 3px;
+            background: #5ac8ff;
         }
     `;
     document.head.appendChild(style);
@@ -108,8 +125,7 @@ function precisionStep(p) {
 function updateFill(slider, min, max, value) {
     const pct = max === min ? 0 : ((value - min) / (max - min)) * 100;
     const c = Math.max(0, Math.min(100, pct));
-    slider.style.background =
-        `linear-gradient(to right, #5ac8ff ${c}%, #303040 ${c}%)`;
+    slider.style.setProperty('--fsn-fill', `${c}%`);
 }
 
 // ---------------------------------------------------------------------------
