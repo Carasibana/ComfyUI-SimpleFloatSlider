@@ -1,0 +1,69 @@
+class SimpleFloatSlider:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "value": ("FLOAT", {
+                    "default": 0.5,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "step": 0.01,
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("FLOAT",)
+    RETURN_NAMES = ("float",)
+    FUNCTION = "execute"
+    CATEGORY = "utils/sliders"
+
+    def execute(self, value):
+        return (round(float(value), 2),)
+
+
+class ConfigurableFloatSlider:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "value": ("FLOAT", {
+                    "default": 0.5,
+                    "min": -10000.0,
+                    "max": 10000.0,
+                    "step": 0.0001,
+                }),
+                "min_value": ("FLOAT", {
+                    "default": 0.0,
+                    "min": -10000.0,
+                    "max": 10000.0,
+                    "step": 0.01,
+                }),
+                "max_value": ("FLOAT", {
+                    "default": 1.0,
+                    "min": -10000.0,
+                    "max": 10000.0,
+                    "step": 0.01,
+                }),
+                "precision": ("INT", {
+                    "default": 2,
+                    "min": 0,
+                    "max": 4,
+                    "step": 1,
+                }),
+                "step": ("FLOAT", {
+                    "default": 0.01,
+                    "min": 0.0001,
+                    "max": 1000.0,
+                    "step": 0.01,
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("FLOAT",)
+    RETURN_NAMES = ("float",)
+    FUNCTION = "execute"
+    CATEGORY = "utils/sliders"
+
+    def execute(self, value, min_value, max_value, precision, step):
+        clamped = max(float(min_value), min(float(max_value), float(value)))
+        return (round(clamped, int(precision)),)
