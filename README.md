@@ -2,6 +2,8 @@
 
 Two custom ComfyUI nodes that replace the default number widget with a styled, draggable slider and a prominent live value display.
 
+![Both slider nodes in ComfyUI](screenshots/Screenshot%202026-03-18%20121242.png)
+
 ---
 
 ## Nodes
