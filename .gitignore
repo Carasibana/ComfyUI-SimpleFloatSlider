@@ -23,3 +23,6 @@ desktop.ini
 *.swp
 *.swo
 *~
+
+# Claude
+.claude/

@@ -11,4 +11,4 @@ requires-python = ">=3.8"
 license = { text = "MIT" }
 
 [project.urls]
-Repository = "http://mcnabnas.local:3000/Carasibana/ComfyUI-SimpleFloatSlider"
+Repository = "https://github.com/Carasibana/ComfyUI-SimpleFloatSlider"
