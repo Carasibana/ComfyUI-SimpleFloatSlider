@@ -1,0 +1,22 @@
+<svg viewBox="0 0 400 400" width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" rx="72" fill="#12121e"/>
+
+  <!-- Number display box -->
+  <rect x="64" y="88" width="272" height="118" rx="18" fill="#0c0c14"/>
+
+  <!-- Number text -->
+  <text x="200" y="168" font-family="'SF Mono', 'Fira Code', monospace"
+        font-size="68" fill="#e8e8f0" text-anchor="middle" font-weight="700"
+        letter-spacing="-2">0.25</text>
+
+  <!-- Slider track: unfilled portion -->
+  <rect x="64" y="260" width="272" height="10" rx="5" fill="#1c1c2e"/>
+
+  <!-- Slider track: filled (left of thumb) -->
+  <rect x="64" y="260" width="106" height="10" rx="5" fill="#3bc4de"/>
+
+  <!-- Thumb -->
+  <circle cx="170" cy="265" r="24" fill="#3bc4de"/>
+  <!-- Specular highlight on thumb -->
+  <circle cx="161" cy="256" r="7" fill="#ffffff" opacity="0.22"/>
+</svg>

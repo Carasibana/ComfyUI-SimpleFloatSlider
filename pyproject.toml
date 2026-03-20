@@ -16,3 +16,4 @@ Repository = "https://github.com/Carasibana/ComfyUI-SimpleFloatSlider"
 [tool.comfy]
 PublisherId = "carasibana"
 DisplayName = "ComfyUI-SimpleFloatSlider"
+Icon   = "https://raw.githubusercontent.com/Carasibana/ComfyUI-SimpleFloatSlider/main/assets/icon-floatslider.svg"
