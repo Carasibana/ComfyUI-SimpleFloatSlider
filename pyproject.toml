@@ -12,3 +12,6 @@ license = { text = "MIT" }
 
 [project.urls]
 Repository = "https://github.com/Carasibana/ComfyUI-SimpleFloatSlider"
+
+[tool.comfy]
+PublisherID = "Carasibana"
