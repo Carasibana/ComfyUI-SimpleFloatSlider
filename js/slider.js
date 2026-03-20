@@ -10,7 +10,8 @@ if (!document.getElementById(STYLE_ID)) {
     style.textContent = `
         .fsn-wrap {
             width: 100%;
-            padding: 6px 10px 10px;
+            padding: 0 10px 8px;
+            margin-top: -8px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -111,6 +112,23 @@ if (!document.getElementById(STYLE_ID)) {
             border-radius: 3px 0 0 3px;
             background: #5ac8ff;
         }
+
+        /* ---- range toggle button (int slider) ---- */
+        .fsn-toggle {
+            font-size: 10px;
+            font-family: 'Courier New', Courier, monospace;
+            background: transparent;
+            color: rgba(90, 190, 255, 0.55);
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            letter-spacing: 1px;
+            transition: color 0.15s;
+            margin-top: -2px;
+        }
+        .fsn-toggle:hover {
+            color: #5ac8ff;
+        }
     `;
     document.head.appendChild(style);
 }
@@ -129,9 +147,9 @@ function updateFill(slider, min, max, value) {
 }
 
 // ---------------------------------------------------------------------------
-// Build the DOM widget element + return a control API
+// Build the DOM widget element for FLOAT sliders
 // ---------------------------------------------------------------------------
-function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep) {
+function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep, includeToggle = false) {
     let value     = initValue;
     let min       = initMin;
     let max       = initMax;
@@ -169,6 +187,18 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
         updateFill(slider, min, max, value);
     });
 
+    // scroll over display or slider → nudge value by one step
+    function onWheelFloat(e) {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? step : -step;
+        value = parseFloat((Math.max(min, Math.min(max, value + delta))).toFixed(precision));
+        slider.value = value;
+        display.textContent = value.toFixed(precision);
+        updateFill(slider, min, max, value);
+    }
+    display.addEventListener("wheel", onWheelFloat, { passive: false });
+    slider.addEventListener("wheel", onWheelFloat, { passive: false });
+
     // click display → inline edit
     display.addEventListener("click", () => {
         const edit = document.createElement("input");
@@ -198,11 +228,20 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
         });
     });
 
+    let toggleBtn = null;
+    if (includeToggle) {
+        toggleBtn = document.createElement("button");
+        toggleBtn.className = "fsn-toggle";
+        toggleBtn.textContent = "▾ configure";
+    }
+
     wrap.appendChild(display);
     wrap.appendChild(slider);
+    if (toggleBtn) wrap.appendChild(toggleBtn);
 
     return {
         element: wrap,
+        toggleBtn,
         getValue:     ()  => value,
         setValue:     (v) => {
             value = Math.max(min, Math.min(max, parseFloat(v) || 0));
@@ -213,6 +252,104 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
             if (newMax       != null) max       = parseFloat(newMax);
             if (newPrecision != null) precision = parseInt(newPrecision);
             if (newStep      != null) step      = parseFloat(newStep);
+            applyBounds();
+        },
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Build the DOM widget element for INT slider
+// ---------------------------------------------------------------------------
+function buildIntSliderElement(initValue, initMin, initMax) {
+    let value = Math.round(initValue);
+    let min   = Math.round(initMin);
+    let max   = Math.round(initMax);
+
+    const wrap = document.createElement("div");
+    wrap.className = "fsn-wrap";
+
+    const display = document.createElement("div");
+    display.className = "fsn-value";
+    display.textContent = String(value);
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.className = "fsn-slider";
+
+    function applyBounds() {
+        slider.min   = min;
+        slider.max   = max;
+        slider.step  = 1;
+        value = Math.max(min, Math.min(max, Math.round(value)));
+        slider.value = value;
+        display.textContent = String(value);
+        updateFill(slider, min, max, value);
+    }
+    applyBounds();
+
+    slider.addEventListener("input", () => {
+        value = parseInt(slider.value);
+        display.textContent = String(value);
+        updateFill(slider, min, max, value);
+    });
+
+    // scroll over display or slider → nudge value by 1
+    function onWheelInt(e) {
+        e.preventDefault();
+        value = Math.max(min, Math.min(max, value + (e.deltaY < 0 ? 1 : -1)));
+        slider.value = value;
+        display.textContent = String(value);
+        updateFill(slider, min, max, value);
+    }
+    display.addEventListener("wheel", onWheelInt, { passive: false });
+    slider.addEventListener("wheel", onWheelInt, { passive: false });
+
+    display.addEventListener("click", () => {
+        const edit = document.createElement("input");
+        edit.type = "number";
+        edit.className = "fsn-edit";
+        edit.value = String(value);
+        edit.step  = 1;
+        display.replaceWith(edit);
+        edit.focus();
+        edit.select();
+
+        function commit() {
+            const parsed = parseInt(edit.value);
+            if (!isNaN(parsed)) {
+                value = Math.max(min, Math.min(max, parsed));
+            }
+            slider.value = value;
+            display.textContent = String(value);
+            updateFill(slider, min, max, value);
+            edit.replaceWith(display);
+        }
+        edit.addEventListener("blur", commit);
+        edit.addEventListener("keydown", (e) => {
+            if (e.key === "Enter")  { e.preventDefault(); commit(); }
+            if (e.key === "Escape") { edit.replaceWith(display); }
+        });
+    });
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.className = "fsn-toggle";
+    toggleBtn.textContent = "▾ set range";
+
+    wrap.appendChild(display);
+    wrap.appendChild(slider);
+    wrap.appendChild(toggleBtn);
+
+    return {
+        element:      wrap,
+        toggleBtn,
+        getValue:     ()  => value,
+        setValue:     (v) => {
+            value = Math.max(min, Math.min(max, parseInt(v) || 0));
+            applyBounds();
+        },
+        updateBounds: (newMin, newMax) => {
+            if (newMin != null) min = parseInt(newMin);
+            if (newMax != null) max = parseInt(newMax);
             applyBounds();
         },
     };
@@ -237,9 +374,11 @@ app.registerExtension({
 
     async beforeRegisterNodeDef(nodeType, nodeData) {
         const name = nodeData.name;
-        if (name !== "SimpleFloatSlider" && name !== "ConfigurableFloatSlider") return;
+        const isSimpleFloat = name === "SimpleFloatSlider";
+        const isConfigFloat = name === "ConfigurableFloatSlider";
+        const isSimpleInt   = name === "ConfigurableIntSlider";
 
-        const isConfigurable = name === "ConfigurableFloatSlider";
+        if (!isSimpleFloat && !isConfigFloat && !isSimpleInt) return;
 
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
@@ -247,35 +386,105 @@ app.registerExtension({
             const node = this;
 
             // -- Pull default value from the Python-created widget then remove it --
-            const origIdx = node.widgets?.findIndex(w => w.name === "value") ?? -1;
-            const origValue = origIdx !== -1 ? (node.widgets[origIdx].value ?? 0.5) : 0.5;
+            const origIdx   = node.widgets?.findIndex(w => w.name === "value") ?? -1;
+            const origValue = origIdx !== -1
+                ? (node.widgets[origIdx].value ?? (isSimpleInt ? 50 : 0.5))
+                : (isSimpleInt ? 50 : 0.5);
             if (origIdx !== -1) node.widgets.splice(origIdx, 1);
 
-            // -- Determine initial bounds --
+            // ----------------------------------------------------------------
+            // Int slider
+            // ----------------------------------------------------------------
+            if (isSimpleInt) {
+                const minW = node.widgets?.find(w => w.name === "min_value");
+                const maxW = node.widgets?.find(w => w.name === "max_value");
+
+                const api = buildIntSliderElement(
+                    Math.round(origValue),
+                    minW?.value ?? 0,
+                    maxW?.value ?? 100,
+                );
+
+                // Toggle button: show/hide min/max widgets + resize node
+                let rangeVisible = false;
+                api.toggleBtn.addEventListener("click", () => {
+                    rangeVisible = !rangeVisible;
+                    [minW, maxW].forEach(w => {
+                        if (!w) return;
+                        if (rangeVisible) {
+                            w.type   = w._fsnOrigType ?? w.type;
+                            w.hidden = false;
+                            delete w.computeSize;
+                        } else {
+                            w.type        = "hidden";
+                            w.hidden      = true;
+                            w.computeSize = () => [0, -4];
+                        }
+                    });
+                    api.toggleBtn.textContent = rangeVisible ? "▴ set range" : "▾ set range";
+                    node.setSize([node.size[0], node.computeSize()[1]]);
+                });
+
+                const domWidget = node.addDOMWidget("value", "int_slider", api.element, {
+                    getValue:     api.getValue,
+                    setValue:     api.setValue,
+                    getMinHeight: () => 81,
+                    getMaxHeight: () => 81,
+                });
+
+                // Move DOM widget to index 0 so it appears at the top
+                const domIdx = node.widgets.indexOf(domWidget);
+                if (domIdx > 0) {
+                    node.widgets.splice(domIdx, 1);
+                    node.widgets.unshift(domWidget);
+                }
+
+                // Wire up min/max callbacks so slider reacts to changes
+                if (minW) wrapCallback(minW, (v) => api.updateBounds(v, null));
+                if (maxW) wrapCallback(maxW, (v) => api.updateBounds(null, v));
+
+                // Defer hiding until after ComfyUI finishes all post-creation setup
+                requestAnimationFrame(() => {
+                    [minW, maxW].forEach(w => {
+                        if (!w) return;
+                        w._fsnOrigType = w.type;
+                        w.type         = "hidden";
+                        w.hidden       = true;
+                        w.computeSize  = () => [0, -4];
+                    });
+                    node.setSize([node.size[0], node.computeSize()[1]]);
+                });
+
+                return;
+            }
+
+            // ----------------------------------------------------------------
+            // Float sliders
+            // ----------------------------------------------------------------
             let initMin  = 0.0;
             let initMax  = 1.0;
             let initPrec = 2;
-            let initStep = null; // null → derived from precision inside buildSliderElement
+            let initStep = null;
+            let minW, maxW, precW, stepW;
 
-            if (isConfigurable) {
-                const minW  = node.widgets?.find(w => w.name === "min_value");
-                const maxW  = node.widgets?.find(w => w.name === "max_value");
-                const precW = node.widgets?.find(w => w.name === "precision");
-                const stepW = node.widgets?.find(w => w.name === "step");
+            if (isConfigFloat) {
+                minW  = node.widgets?.find(w => w.name === "min_value");
+                maxW  = node.widgets?.find(w => w.name === "max_value");
+                precW = node.widgets?.find(w => w.name === "precision");
+                stepW = node.widgets?.find(w => w.name === "step");
                 if (minW)  initMin  = minW.value  ?? initMin;
                 if (maxW)  initMax  = maxW.value  ?? initMax;
                 if (precW) initPrec = precW.value ?? initPrec;
                 if (stepW) initStep = stepW.value ?? initStep;
             }
 
-            // -- Build the slider DOM widget --
-            const api = buildSliderElement(origValue, initMin, initMax, initPrec, initStep);
+            const api = buildSliderElement(origValue, initMin, initMax, initPrec, initStep, isConfigFloat);
 
             const domWidget = node.addDOMWidget("value", "float_slider", api.element, {
-                getValue:      api.getValue,
-                setValue:      api.setValue,
-                getMinHeight:  () => 80,
-                getMaxHeight:  () => 80,
+                getValue:     api.getValue,
+                setValue:     api.setValue,
+                getMinHeight: () => isConfigFloat ? 81 : 66,
+                getMaxHeight: () => isConfigFloat ? 81 : 66,
             });
 
             // Move DOM widget to index 0 so it appears at the top
@@ -285,17 +494,42 @@ app.registerExtension({
                 node.widgets.unshift(domWidget);
             }
 
-            // -- For configurable node: live-update slider when config widgets change --
-            if (isConfigurable) {
-                const minW  = node.widgets?.find(w => w.name === "min_value");
-                const maxW  = node.widgets?.find(w => w.name === "max_value");
-                const precW = node.widgets?.find(w => w.name === "precision");
-                const stepW = node.widgets?.find(w => w.name === "step");
-
+            if (isConfigFloat) {
                 if (minW)  wrapCallback(minW,  (v) => api.updateBounds(v, null, null, null));
                 if (maxW)  wrapCallback(maxW,  (v) => api.updateBounds(null, v, null, null));
                 if (precW) wrapCallback(precW, (v) => api.updateBounds(null, null, v, null));
                 if (stepW) wrapCallback(stepW, (v) => api.updateBounds(null, null, null, v));
+
+                const configWidgets = [minW, maxW, precW, stepW];
+                let configVisible = false;
+                api.toggleBtn.addEventListener("click", () => {
+                    configVisible = !configVisible;
+                    configWidgets.forEach(w => {
+                        if (!w) return;
+                        if (configVisible) {
+                            w.type   = w._fsnOrigType ?? w.type;
+                            w.hidden = false;
+                            delete w.computeSize;
+                        } else {
+                            w.type        = "hidden";
+                            w.hidden      = true;
+                            w.computeSize = () => [0, -4];
+                        }
+                    });
+                    api.toggleBtn.textContent = configVisible ? "▴ configure" : "▾ configure";
+                    node.setSize([node.size[0], node.computeSize()[1]]);
+                });
+
+                requestAnimationFrame(() => {
+                    configWidgets.forEach(w => {
+                        if (!w) return;
+                        w._fsnOrigType = w.type;
+                        w.type         = "hidden";
+                        w.hidden       = true;
+                        w.computeSize  = () => [0, -4];
+                    });
+                    node.setSize([node.size[0], node.computeSize()[1]]);
+                });
             }
         };
     },

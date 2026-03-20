@@ -1,8 +1,13 @@
 # ComfyUI Simple Float Slider
 
-Two custom ComfyUI nodes that replace the default number widget with a styled, draggable slider and a prominent live value display.
+Three custom ComfyUI nodes that replace the default number widget with a styled, draggable slider and a prominent live value display.
 
-![Both slider nodes in ComfyUI](screenshots/Screenshot%202026-03-18%20121242.png)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+---
+
+![All three slider nodes in ComfyUI](screenshots/all-nodes-overview.png)
 
 ---
 
@@ -11,6 +16,8 @@ Two custom ComfyUI nodes that replace the default number widget with a styled, d
 ### Simple Float Slider
 
 A fixed-range slider with no configuration required.
+
+![Simple Float Slider](screenshots/simple-float-slider.png)
 
 | Widget | Type | Description |
 |--------|------|-------------|
@@ -28,7 +35,9 @@ A fixed-range slider with no configuration required.
 
 ### Configurable Float Slider
 
-A fully configurable slider. All settings update the slider live — no re-queuing needed.
+A fully configurable slider. All settings update the slider live — no re-queuing needed. Configuration fields are hidden by default behind a `▾ configure` toggle.
+
+![Configurable Float Slider collapsed](screenshots/configurable-float-slider-collapsed.png) ![Configurable Float Slider expanded](screenshots/configurable-float-slider-expanded.png)
 
 | Widget | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -46,13 +55,34 @@ A fully configurable slider. All settings update the slider live — no re-queui
 
 ---
 
+### Configurable Int Slider
+
+An integer slider with a configurable range. Configuration fields are hidden by default to keep the node compact.
+
+![Configurable Int Slider collapsed](screenshots/configurable-int-slider-collapsed.png) ![Configurable Int Slider expanded](screenshots/configurable-int-slider-expanded.png)
+
+| Widget | Type | Default | Description |
+|--------|------|---------|-------------|
+| `value` | slider | `50` | Drag to adjust. Click the number to type a value directly. |
+| `min_value` | int | `0` | Lower bound of the slider range (revealed by `▾ set range`) |
+| `max_value` | int | `100` | Upper bound of the slider range (revealed by `▾ set range`) |
+
+| Output | Type | Description |
+|--------|------|-------------|
+| `int` | INT | Current value, clamped to [min, max] |
+
+- Click `▾ set range` to expand the min/max fields; click `▴ set range` to collapse them again.
+
+---
+
 ## Slider UI
 
-Both nodes share the same widget style:
+All three nodes share the same widget style:
 
 - **Large value display** — monospace, centered at the top of the node. Click it to type a value directly; press `Enter` to confirm or `Escape` to cancel.
+- **Mouse wheel** — hover over the value display or anywhere on the slider track and scroll to nudge the value. Scroll up to increase, scroll down to decrease. Float sliders increment by the configured `step` size; the int slider increments by `1`. The page canvas will not scroll while the pointer is over the slider.
 - **Draggable range slider** — color-filled track: blue left of the thumb, dark right. The fill updates live as you drag.
-- **Live configuration** (Configurable node only) — changing `min_value`, `max_value`, `precision`, or `step` immediately updates the slider without touching the queue.
+- **Collapsible configuration** — the Configurable Float Slider (`▾ configure`) and Configurable Int Slider (`▾ set range`) hide their settings fields by default; click the toggle to expand or collapse them.
 
 ---
 
@@ -72,7 +102,7 @@ ComfyUI/
 
 2. Restart ComfyUI.
 
-3. Both nodes appear under **utils/sliders** in the node search.
+3. All three nodes appear under **utils/sliders** in the node search.
 
 ---
 
@@ -80,3 +110,14 @@ ComfyUI/
 
 - ComfyUI (any recent version with custom node support)
 - No additional Python packages required
+
+---
+
+## Changelog
+
+### v1.1.0
+
+- **New node: Configurable Int Slider** — a styled integer slider under `utils/sliders`. Outputs `INT`. Defaults to range `0`–`100`.
+  - Min and max are configurable directly on the node via a `▾ set range` toggle button that expands/collapses the range fields, keeping the UI clean during normal use.
+- **Configurable Float Slider** — the four configuration fields (`min_value`, `max_value`, `precision`, `step`) are now hidden by default behind a `▾ configure` toggle button, consistent with the new int slider behaviour.
+- **Mouse wheel support** — on all three nodes, hovering over the value display or the slider track and scrolling up/down increments or decrements the value. Scroll up increases the value, scroll down decreases it. The Configurable Float Slider steps by its configured `step` value; the Simple Float Slider steps by `0.01`; the Configurable Int Slider steps by `1`. The canvas will not scroll while the pointer is over the slider.

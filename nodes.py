@@ -1,3 +1,38 @@
+class ConfigurableIntSlider:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "value": ("INT", {
+                    "default": 50,
+                    "min": -1000000,
+                    "max": 1000000,
+                    "step": 1,
+                }),
+                "min_value": ("INT", {
+                    "default": 0,
+                    "min": -1000000,
+                    "max": 1000000,
+                    "step": 1,
+                }),
+                "max_value": ("INT", {
+                    "default": 100,
+                    "min": -1000000,
+                    "max": 1000000,
+                    "step": 1,
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("INT",)
+    RETURN_NAMES = ("int",)
+    FUNCTION = "execute"
+    CATEGORY = "utils/sliders"
+
+    def execute(self, value, min_value, max_value):
+        return (max(int(min_value), min(int(max_value), int(value))),)
+
+
 class SimpleFloatSlider:
     @classmethod
     def INPUT_TYPES(cls):

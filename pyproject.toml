@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "comfyui-simple-float-slider"
-version = "1.0.0"
+version = "1.1.0"
 description = "ComfyUI custom nodes providing styled draggable float slider widgets"
 readme = "README.md"
 requires-python = ">=3.8"

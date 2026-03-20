@@ -1,11 +1,13 @@
-from .nodes import SimpleFloatSlider, ConfigurableFloatSlider
+from .nodes import ConfigurableIntSlider, SimpleFloatSlider, ConfigurableFloatSlider
 
 NODE_CLASS_MAPPINGS = {
+    "ConfigurableIntSlider": ConfigurableIntSlider,
     "SimpleFloatSlider": SimpleFloatSlider,
     "ConfigurableFloatSlider": ConfigurableFloatSlider,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "ConfigurableIntSlider": "Configurable Int Slider",
     "SimpleFloatSlider": "Simple Float Slider",
     "ConfigurableFloatSlider": "Configurable Float Slider",
 }
