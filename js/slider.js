@@ -151,6 +151,10 @@ function updateFill(slider, min, max, value) {
 // ---------------------------------------------------------------------------
 function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep, includeToggle = false) {
     let value     = initValue;
+    // Unclamped source of truth. `value` is always derived from this, so clamping
+    // against temporarily-wrong bounds (e.g. during a workflow load, before the
+    // config widgets have been read back) never destroys the real value.
+    let rawValue  = initValue;
     let min       = initMin;
     let max       = initMax;
     let precision = initPrecision;
@@ -173,7 +177,7 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
         slider.min   = min;
         slider.max   = max;
         slider.step  = step;
-        value = Math.max(min, Math.min(max, value));
+        value = Math.max(min, Math.min(max, rawValue));
         slider.value = value;
         display.textContent = value.toFixed(precision);
         updateFill(slider, min, max, value);
@@ -183,6 +187,7 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
     // drag
     slider.addEventListener("input", () => {
         value = parseFloat(slider.value);
+        rawValue = value;
         display.textContent = value.toFixed(precision);
         updateFill(slider, min, max, value);
     });
@@ -192,6 +197,7 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
         e.preventDefault();
         const delta = e.deltaY < 0 ? step : -step;
         value = parseFloat((Math.max(min, Math.min(max, value + delta))).toFixed(precision));
+        rawValue = value;
         slider.value = value;
         display.textContent = value.toFixed(precision);
         updateFill(slider, min, max, value);
@@ -215,6 +221,7 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
             if (!isNaN(parsed)) {
                 value = Math.max(min, Math.min(max, parsed));
                 value = parseFloat(value.toFixed(precision));
+                rawValue = value;
             }
             slider.value = value;
             display.textContent = value.toFixed(precision);
@@ -244,7 +251,8 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
         toggleBtn,
         getValue:     ()  => value,
         setValue:     (v) => {
-            value = Math.max(min, Math.min(max, parseFloat(v) || 0));
+            const parsed = parseFloat(v);
+            rawValue = isNaN(parsed) ? 0 : parsed;
             applyBounds();
         },
         updateBounds: (newMin, newMax, newPrecision, newStep) => {
@@ -261,9 +269,10 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
 // Build the DOM widget element for INT slider
 // ---------------------------------------------------------------------------
 function buildIntSliderElement(initValue, initMin, initMax) {
-    let value = Math.round(initValue);
-    let min   = Math.round(initMin);
-    let max   = Math.round(initMax);
+    let value    = Math.round(initValue);
+    let rawValue = Math.round(initValue);   // see buildSliderElement
+    let min      = Math.round(initMin);
+    let max      = Math.round(initMax);
 
     const wrap = document.createElement("div");
     wrap.className = "fsn-wrap";
@@ -280,7 +289,7 @@ function buildIntSliderElement(initValue, initMin, initMax) {
         slider.min   = min;
         slider.max   = max;
         slider.step  = 1;
-        value = Math.max(min, Math.min(max, Math.round(value)));
+        value = Math.max(min, Math.min(max, Math.round(rawValue)));
         slider.value = value;
         display.textContent = String(value);
         updateFill(slider, min, max, value);
@@ -289,6 +298,7 @@ function buildIntSliderElement(initValue, initMin, initMax) {
 
     slider.addEventListener("input", () => {
         value = parseInt(slider.value);
+        rawValue = value;
         display.textContent = String(value);
         updateFill(slider, min, max, value);
     });
@@ -297,6 +307,7 @@ function buildIntSliderElement(initValue, initMin, initMax) {
     function onWheelInt(e) {
         e.preventDefault();
         value = Math.max(min, Math.min(max, value + (e.deltaY < 0 ? 1 : -1)));
+        rawValue = value;
         slider.value = value;
         display.textContent = String(value);
         updateFill(slider, min, max, value);
@@ -318,6 +329,7 @@ function buildIntSliderElement(initValue, initMin, initMax) {
             const parsed = parseInt(edit.value);
             if (!isNaN(parsed)) {
                 value = Math.max(min, Math.min(max, parsed));
+                rawValue = value;
             }
             slider.value = value;
             display.textContent = String(value);
@@ -344,7 +356,8 @@ function buildIntSliderElement(initValue, initMin, initMax) {
         toggleBtn,
         getValue:     ()  => value,
         setValue:     (v) => {
-            value = Math.max(min, Math.min(max, parseInt(v) || 0));
+            const parsed = Math.round(parseFloat(v));
+            rawValue = isNaN(parsed) ? 0 : parsed;
             applyBounds();
         },
         updateBounds: (newMin, newMax) => {
@@ -443,6 +456,11 @@ app.registerExtension({
                 if (minW) wrapCallback(minW, (v) => api.updateBounds(v, null));
                 if (maxW) wrapCallback(maxW, (v) => api.updateBounds(null, v));
 
+                // Loading a workflow restores widget values by direct assignment, which
+                // never fires their callbacks — so the slider would keep the defaults it
+                // was built with until the user nudged each widget. Pull them in instead.
+                node._fsnSync = () => api.updateBounds(minW?.value, maxW?.value);
+
                 // Defer hiding until after ComfyUI finishes all post-creation setup
                 requestAnimationFrame(() => {
                     [minW, maxW].forEach(w => {
@@ -452,6 +470,7 @@ app.registerExtension({
                         w.hidden       = true;
                         w.computeSize  = () => [0, -4];
                     });
+                    node._fsnSync();
                     node.setSize([node.size[0], node.computeSize()[1]]);
                 });
 
@@ -500,6 +519,10 @@ app.registerExtension({
                 if (precW) wrapCallback(precW, (v) => api.updateBounds(null, null, v, null));
                 if (stepW) wrapCallback(stepW, (v) => api.updateBounds(null, null, null, v));
 
+                // See the int-slider branch — restored widget values never fire callbacks.
+                node._fsnSync = () =>
+                    api.updateBounds(minW?.value, maxW?.value, precW?.value, stepW?.value);
+
                 const configWidgets = [minW, maxW, precW, stepW];
                 let configVisible = false;
                 api.toggleBtn.addEventListener("click", () => {
@@ -528,9 +551,19 @@ app.registerExtension({
                         w.hidden       = true;
                         w.computeSize  = () => [0, -4];
                     });
+                    node._fsnSync();
                     node.setSize([node.size[0], node.computeSize()[1]]);
                 });
             }
+        };
+
+        // Fires once LiteGraph has restored widgets_values, so the slider can adopt the
+        // saved bounds/precision/step. The rAF above is only a fallback for frontends
+        // that restore widget values after configure() has already returned.
+        const onConfigure = nodeType.prototype.onConfigure;
+        nodeType.prototype.onConfigure = function () {
+            onConfigure?.apply(this, arguments);
+            this._fsnSync?.();
         };
     },
 });

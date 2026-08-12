@@ -2,7 +2,7 @@
 
 Three custom ComfyUI nodes that replace the default number widget with a styled, draggable slider and a prominent live value display.
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
@@ -114,6 +114,13 @@ ComfyUI/
 ---
 
 ## Changelog
+
+### v1.1.1
+
+- **Fixed: saved settings were ignored when loading a workflow** — the Configurable Float Slider and Configurable Int Slider rebuilt themselves with their default range on load, so a saved `min_value`, `max_value`, `precision` or `step` had no effect on the slider until you nudged each field and moved it back. The configuration fields displayed the correct saved numbers the whole time, which made the mismatch easy to miss. The slider now reads the restored configuration once the workflow finishes loading.
+- **Fixed: values outside the default range were lost on load** — because the slider still held its default bounds while the saved value was being restored, the value was clamped to those defaults. A node saved as `value: 7.5` with `max_value: 10.0` reloaded as `1.0`. The value is now clamped only against the configuration it was actually saved with.
+  - Workflows already re-saved after being clamped have the reduced value stored on disk and cannot be recovered automatically.
+- **Changed: narrowing a range is no longer destructive** — lowering `max_value` below the current value clamps the display as before, but raising it again restores the original value instead of leaving it stuck at the lower bound. Dragging, scrolling or typing a value still replaces it outright.
 
 ### v1.1.0
 
