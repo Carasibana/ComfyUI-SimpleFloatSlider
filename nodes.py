@@ -21,6 +21,12 @@ class ConfigurableIntSlider:
                     "max": 1000000,
                     "step": 1,
                 }),
+                "step": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 1000000,
+                    "step": 1,
+                }),
             }
         }
 
@@ -29,7 +35,7 @@ class ConfigurableIntSlider:
     FUNCTION = "execute"
     CATEGORY = "utils/sliders"
 
-    def execute(self, value, min_value, max_value):
+    def execute(self, value, min_value, max_value, step):
         return (max(int(min_value), min(int(max_value), int(value))),)
 
 

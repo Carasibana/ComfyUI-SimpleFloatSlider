@@ -140,6 +140,19 @@ function precisionStep(p) {
     return p === 0 ? 1 : parseFloat(Math.pow(10, -p).toFixed(p));
 }
 
+// Int slider steps are whole numbers only, and never smaller than 1.
+function intStep(s) {
+    const n = Math.round(parseFloat(s));
+    return isNaN(n) || n < 1 ? 1 : n;
+}
+
+// Snap `v` onto the grid of `step` measured from `base`. toFixed(10) strips the
+// floating-point noise that base + k * step accumulates (0.30000000000000004).
+function snapToGrid(v, base, step) {
+    if (!(step > 0)) return v;
+    return parseFloat((base + Math.round((v - base) / step) * step).toFixed(10));
+}
+
 function updateFill(slider, min, max, value) {
     const pct = max === min ? 0 : ((value - min) / (max - min)) * 100;
     const c = Math.max(0, Math.min(100, pct));
@@ -173,10 +186,16 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
     slider.type = "range";
     slider.className = "fsn-slider";
 
+    // Drag snaps are measured from wherever the value already was when the drag
+    // started. While the value sits on the min-grid that is the same grid a native
+    // step= would give; once it has been typed off-grid, steps run from the typed
+    // value instead. Changing `step` re-grids from min — see setStep below.
+    let dragAnchor = null;
+
     function applyBounds() {
         slider.min   = min;
         slider.max   = max;
-        slider.step  = step;
+        slider.step  = "any";   // snapping is done below, not by the browser
         value = Math.max(min, Math.min(max, rawValue));
         slider.value = value;
         display.textContent = value.toFixed(precision);
@@ -186,11 +205,16 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
 
     // drag
     slider.addEventListener("input", () => {
-        value = parseFloat(slider.value);
+        if (dragAnchor === null) dragAnchor = value;
+        const snapped = snapToGrid(parseFloat(slider.value), dragAnchor, step);
+        value = Math.max(min, Math.min(max, snapped));
         rawValue = value;
+        slider.value = value;
         display.textContent = value.toFixed(precision);
         updateFill(slider, min, max, value);
     });
+    // Drag finished — the next one re-anchors on the value we landed on.
+    slider.addEventListener("change", () => { dragAnchor = null; });
 
     // scroll over display or slider → nudge value by one step
     function onWheelFloat(e) {
@@ -198,6 +222,7 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
         const delta = e.deltaY < 0 ? step : -step;
         value = parseFloat((Math.max(min, Math.min(max, value + delta))).toFixed(precision));
         rawValue = value;
+        dragAnchor = null;
         slider.value = value;
         display.textContent = value.toFixed(precision);
         updateFill(slider, min, max, value);
@@ -222,6 +247,7 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
                 value = Math.max(min, Math.min(max, parsed));
                 value = parseFloat(value.toFixed(precision));
                 rawValue = value;
+                dragAnchor = null;
             }
             slider.value = value;
             display.textContent = value.toFixed(precision);
@@ -255,11 +281,23 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
             rawValue = isNaN(parsed) ? 0 : parsed;
             applyBounds();
         },
+        // Restoring saved configuration. Never re-grids — a value saved off-grid was
+        // typed deliberately and must survive the reload intact.
         updateBounds: (newMin, newMax, newPrecision, newStep) => {
             if (newMin       != null) min       = parseFloat(newMin);
             if (newMax       != null) max       = parseFloat(newMax);
             if (newPrecision != null) precision = parseInt(newPrecision);
             if (newStep      != null) step      = parseFloat(newStep);
+            applyBounds();
+        },
+        // The user editing the `step` widget. Re-grids the current value onto the
+        // nearest multiple of the new step from min, so changing step always lands you
+        // back on-grid; typing a value afterwards is the only way off it again.
+        setStep: (newStep) => {
+            const parsed = parseFloat(newStep);
+            if (!isNaN(parsed) && parsed > 0) step = parsed;
+            rawValue   = snapToGrid(rawValue, min, step);
+            dragAnchor = null;
             applyBounds();
         },
     };
@@ -268,11 +306,13 @@ function buildSliderElement(initValue, initMin, initMax, initPrecision, initStep
 // ---------------------------------------------------------------------------
 // Build the DOM widget element for INT slider
 // ---------------------------------------------------------------------------
-function buildIntSliderElement(initValue, initMin, initMax) {
+function buildIntSliderElement(initValue, initMin, initMax, initStep) {
     let value    = Math.round(initValue);
     let rawValue = Math.round(initValue);   // see buildSliderElement
     let min      = Math.round(initMin);
     let max      = Math.round(initMax);
+    // Always a whole number of at least 1, so the slider can never land off-integer.
+    let step     = intStep(initStep);
 
     const wrap = document.createElement("div");
     wrap.className = "fsn-wrap";
@@ -285,10 +325,15 @@ function buildIntSliderElement(initValue, initMin, initMax) {
     slider.type = "range";
     slider.className = "fsn-slider";
 
+    // Anchor the drag snaps to wherever the value already was when the drag started,
+    // so a typed value like 37 with step 5 moves to 42/32 rather than to the 35/40
+    // grid a native step= would impose (the browser anchors its grid at min).
+    let dragAnchor = null;
+
     function applyBounds() {
         slider.min   = min;
         slider.max   = max;
-        slider.step  = 1;
+        slider.step  = "any";   // snapping is done below, not by the browser
         value = Math.max(min, Math.min(max, Math.round(rawValue)));
         slider.value = value;
         display.textContent = String(value);
@@ -297,17 +342,24 @@ function buildIntSliderElement(initValue, initMin, initMax) {
     applyBounds();
 
     slider.addEventListener("input", () => {
-        value = parseInt(slider.value);
+        if (dragAnchor === null) dragAnchor = value;
+        const raw     = parseFloat(slider.value);
+        const snapped = dragAnchor + Math.round((raw - dragAnchor) / step) * step;
+        value = Math.max(min, Math.min(max, Math.round(snapped)));
         rawValue = value;
+        slider.value = value;
         display.textContent = String(value);
         updateFill(slider, min, max, value);
     });
+    // Drag finished — the next one re-anchors on the value we landed on.
+    slider.addEventListener("change", () => { dragAnchor = null; });
 
-    // scroll over display or slider → nudge value by 1
+    // scroll over display or slider → nudge value by one step
     function onWheelInt(e) {
         e.preventDefault();
-        value = Math.max(min, Math.min(max, value + (e.deltaY < 0 ? 1 : -1)));
+        value = Math.max(min, Math.min(max, value + (e.deltaY < 0 ? step : -step)));
         rawValue = value;
+        dragAnchor = null;
         slider.value = value;
         display.textContent = String(value);
         updateFill(slider, min, max, value);
@@ -320,7 +372,7 @@ function buildIntSliderElement(initValue, initMin, initMax) {
         edit.type = "number";
         edit.className = "fsn-edit";
         edit.value = String(value);
-        edit.step  = 1;
+        edit.step  = step;
         display.replaceWith(edit);
         edit.focus();
         edit.select();
@@ -330,6 +382,7 @@ function buildIntSliderElement(initValue, initMin, initMax) {
             if (!isNaN(parsed)) {
                 value = Math.max(min, Math.min(max, parsed));
                 rawValue = value;
+                dragAnchor = null;
             }
             slider.value = value;
             display.textContent = String(value);
@@ -345,7 +398,7 @@ function buildIntSliderElement(initValue, initMin, initMax) {
 
     const toggleBtn = document.createElement("button");
     toggleBtn.className = "fsn-toggle";
-    toggleBtn.textContent = "▾ set range";
+    toggleBtn.textContent = "▾ configure";
 
     wrap.appendChild(display);
     wrap.appendChild(slider);
@@ -360,9 +413,18 @@ function buildIntSliderElement(initValue, initMin, initMax) {
             rawValue = isNaN(parsed) ? 0 : parsed;
             applyBounds();
         },
-        updateBounds: (newMin, newMax) => {
-            if (newMin != null) min = parseInt(newMin);
-            if (newMax != null) max = parseInt(newMax);
+        // Restoring saved configuration — never re-grids. See the float slider.
+        updateBounds: (newMin, newMax, newStep) => {
+            if (newMin  != null) min  = parseInt(newMin);
+            if (newMax  != null) max  = parseInt(newMax);
+            if (newStep != null) step = intStep(newStep);
+            applyBounds();
+        },
+        // The user editing the `step` widget — re-grids from min. See the float slider.
+        setStep: (newStep) => {
+            step       = intStep(newStep);
+            rawValue   = Math.round(snapToGrid(rawValue, min, step));
+            dragAnchor = null;
             applyBounds();
         },
     };
@@ -409,22 +471,26 @@ app.registerExtension({
             // Int slider
             // ----------------------------------------------------------------
             if (isSimpleInt) {
-                const minW = node.widgets?.find(w => w.name === "min_value");
-                const maxW = node.widgets?.find(w => w.name === "max_value");
+                const minW  = node.widgets?.find(w => w.name === "min_value");
+                const maxW  = node.widgets?.find(w => w.name === "max_value");
+                const stepW = node.widgets?.find(w => w.name === "step");
 
                 const api = buildIntSliderElement(
                     Math.round(origValue),
-                    minW?.value ?? 0,
-                    maxW?.value ?? 100,
+                    minW?.value  ?? 0,
+                    maxW?.value  ?? 100,
+                    stepW?.value ?? 1,
                 );
 
-                // Toggle button: show/hide min/max widgets + resize node
-                let rangeVisible = false;
+                const configWidgets = [minW, maxW, stepW];
+
+                // Toggle button: show/hide the range/step widgets + resize node
+                let configVisible = false;
                 api.toggleBtn.addEventListener("click", () => {
-                    rangeVisible = !rangeVisible;
-                    [minW, maxW].forEach(w => {
+                    configVisible = !configVisible;
+                    configWidgets.forEach(w => {
                         if (!w) return;
-                        if (rangeVisible) {
+                        if (configVisible) {
                             w.type   = w._fsnOrigType ?? w.type;
                             w.hidden = false;
                             delete w.computeSize;
@@ -434,7 +500,7 @@ app.registerExtension({
                             w.computeSize = () => [0, -4];
                         }
                     });
-                    api.toggleBtn.textContent = rangeVisible ? "▴ set range" : "▾ set range";
+                    api.toggleBtn.textContent = configVisible ? "▴ configure" : "▾ configure";
                     node.setSize([node.size[0], node.computeSize()[1]]);
                 });
 
@@ -452,18 +518,19 @@ app.registerExtension({
                     node.widgets.unshift(domWidget);
                 }
 
-                // Wire up min/max callbacks so slider reacts to changes
-                if (minW) wrapCallback(minW, (v) => api.updateBounds(v, null));
-                if (maxW) wrapCallback(maxW, (v) => api.updateBounds(null, v));
+                // Wire up min/max/step callbacks so slider reacts to changes
+                if (minW)  wrapCallback(minW,  (v) => api.updateBounds(v, null, null));
+                if (maxW)  wrapCallback(maxW,  (v) => api.updateBounds(null, v, null));
+                if (stepW) wrapCallback(stepW, (v) => api.setStep(v));
 
                 // Loading a workflow restores widget values by direct assignment, which
                 // never fires their callbacks — so the slider would keep the defaults it
                 // was built with until the user nudged each widget. Pull them in instead.
-                node._fsnSync = () => api.updateBounds(minW?.value, maxW?.value);
+                node._fsnSync = () => api.updateBounds(minW?.value, maxW?.value, stepW?.value);
 
                 // Defer hiding until after ComfyUI finishes all post-creation setup
                 requestAnimationFrame(() => {
-                    [minW, maxW].forEach(w => {
+                    configWidgets.forEach(w => {
                         if (!w) return;
                         w._fsnOrigType = w.type;
                         w.type         = "hidden";
@@ -517,7 +584,7 @@ app.registerExtension({
                 if (minW)  wrapCallback(minW,  (v) => api.updateBounds(v, null, null, null));
                 if (maxW)  wrapCallback(maxW,  (v) => api.updateBounds(null, v, null, null));
                 if (precW) wrapCallback(precW, (v) => api.updateBounds(null, null, v, null));
-                if (stepW) wrapCallback(stepW, (v) => api.updateBounds(null, null, null, v));
+                if (stepW) wrapCallback(stepW, (v) => api.setStep(v));
 
                 // See the int-slider branch — restored widget values never fire callbacks.
                 node._fsnSync = () =>
